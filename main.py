@@ -5,7 +5,7 @@ import neigh
 from scapy.layers.l2 import Ether
 
 # --- 配置区 ---
-IFACE = "br0"
+from config import IFACE
 PREFIX = "2001:db8::"  # 你的 NPTV6 前缀
 
 # 主路由信息

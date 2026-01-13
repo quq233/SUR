@@ -4,10 +4,11 @@ from pydantic import BaseModel
 from starlette.middleware.cors import CORSMiddleware
 from tinydb import TinyDB, Query
 
-
+from ipv4_neigh import ipv4_to_mac
 # --- 1. 基础模型定义 ---
 from models import Device, Gateway, Tag
-
+from neigh import scan_neighbors
+from config import IFACE
 
 # --- 2. 泛型 CRUD 核心引擎 ---
 T = TypeVar("T", bound=BaseModel)
@@ -70,7 +71,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+@app.get("/neighbors/")
+async def list_neighbors():
+    return await scan_neighbors(iface=IFACE)
 
+@app.get("/ipv4/mac/")
+async def get_ipv4_mac(ip: str):
+    return ipv4_to_mac(iface=IFACE,ip=ip)
+@app.get("")
 #Tag 的路由
 @app.post("/tags/", response_model=Tag)
 def create_tag(tag: Tag): return tag_service.create(tag)
@@ -79,7 +87,7 @@ def create_tag(tag: Tag): return tag_service.create(tag)
 def list_tags(): return tag_service.get_all()
 
 @app.put("/tags/{tag_id}")
-def update_tag(tag_id: str,tag: Tag):
+def update_tag(tag_id: int,tag: Tag):
     return tag_service.update(tag_id, tag.model_dump())
 
 @app.delete("/tags/{tag_id}")
