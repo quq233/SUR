@@ -3,7 +3,7 @@ from scapy.layers.inet6 import ICMPv6ND_RA, ICMPv6NDOptPrefixInfo, ICMPv6NDOptSr
 from scapy.layers.l2 import Ether
 
 # --- 配置区 ---
-from config import IFACE
+IFACE='br0'
 
 PREFIX = "2001:db8::"  # 你的 NPTV6 前缀
 
@@ -15,12 +15,15 @@ MAIN_LLA = "fe80::1"
 SIDE_MAC = "6e:80:5a:e0:46:fe"
 SIDE_LLA = "fe80::6c80:5aff:fee0:46fe"
 
-# 父母手机列表 (目标)
+# 部署脚本的设备，可以直接在旁路由部署
+SOURCE_MAC = "6e:80:5a:e0:46:fe"
+
+#直连设备
 DIRECT_DEVICE = [
     "d2:8c:f5:e1:b4:f4",
 ]
 
-# 我的手机 (目标)
+#代理设备
 PROXY_DEVICE = [
     "9c:9e:d5:48:01:cf",
 ]
@@ -62,18 +65,11 @@ def send_ra(dst_mac, dst_lla, real_mac, src_mac, src_lla, router_lifetime=300):
     print(f"[+] 已向 {dst_mac} ({dst_lla}) 发送 RA，网关指向 {src_lla}")
 
 if __name__ == "__main__":
-    #sniffer = neigh.start_discovery_thread(IFACE)
     while True:
-        #neigh.refresh_neighbors(IFACE)
-        #time.sleep(2)  # 等待Ping响应
-
-        # 1. 给父母手机发 RA：网关指向【主路由】
         for p in DIRECT_DEVICE:
-            send_ra(p, "ff02::1",SIDE_MAC ,MAIN_MAC, MAIN_LLA)
+            send_ra(p, "ff02::1",SOURCE_MAC ,MAIN_MAC, MAIN_LLA)
 
-        # 2. 给自己手机发 RA：网关指向【旁路由】
         for device_mac in PROXY_DEVICE:
-            #send_ra(device_mac, neigh.get_ipv6_by_mac_fast(device_mac), SIDE_MAC,SIDE_MAC, SIDE_LLA)
-            send_ra(device_mac, "ff02::1", SIDE_MAC, SIDE_MAC, SIDE_LLA)
+            send_ra(device_mac, "ff02::1", SOURCE_MAC, SIDE_MAC, SIDE_LLA)
 
         time.sleep(150)
