@@ -1,11 +1,10 @@
 from scapy.all import *
 from scapy.layers.inet6 import ICMPv6ND_RA, ICMPv6NDOptPrefixInfo, ICMPv6NDOptSrcLLAddr, IPv6, ICMPv6NDOptRDNSS
-import time
-import neigh
 from scapy.layers.l2 import Ether
 
 # --- 配置区 ---
 from config import IFACE
+
 PREFIX = "2001:db8::"  # 你的 NPTV6 前缀
 
 # 主路由信息

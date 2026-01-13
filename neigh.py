@@ -1,48 +1,43 @@
-import asyncio
+import platform
+from typing import List
 
-from scapy.all import *
-from scapy.layers.inet6 import IPv6, ICMPv6ND_NS, ICMPv6ND_NA, ICMPv6NDOptSrcLLAddr, ICMPv6EchoRequest
-from scapy.layers.l2 import Ether
+from scapy.all import srp1
+from scapy.layers.l2 import Ether, ARP
+from pyroute2 import IPRoute
+import socket
 
-# 建立一个全局缓存，格式为 { "mac": "lla" }
+from config import IFACE
+from models import IPv6Neighbor
 
-def start_discovery_thread(iface,results: Dict[str, str]):
-    def neighbor_callback(pkt):
-        """
-        回调函数：每当网卡抓到报文时，提取 IPv6 地址和 MAC 的对应关系
-        """
-        src_lla = pkt[IPv6].src
-        src_mac = pkt[Ether].src.lower()
-        results[src_mac] = src_lla
-        print(f"pkt received from {src_lla} {src_mac}")
+ipr = IPRoute()
+def get_ipv6_neighs()->List[IPv6Neighbor]:
+    if platform.system() != "Linux":
+        return []
+    result=[]
+    idx = ipr.link_lookup(ifname=IFACE)[0]
+    neighbours = ipr.get_neighbours(ifindex=idx, family=socket.AF_INET6)
 
-    """
-    启动异步抓包，实时更新邻居表
-    """
-    t = AsyncSniffer(iface=iface, prn=neighbor_callback, store=0, filter="icmp6")
-    t.start()
-    return t
+    # 提取 fe80 开头的 IPv6 和对应 MAC
+    for neigh in neighbours:
+        attrs_dict = dict(neigh['attrs'])
 
+        ipv6_addr = attrs_dict.get('NDA_DST')
+        mac_addr = attrs_dict.get('NDA_LLADDR')
 
-def refresh_neighbors(iface):
-    print(f"[*] 正在向 {iface} 发送组播 Ping 探测所有节点...")
-    ping_pkt = Ether(dst="33:33:00:00:00:01") / \
-               IPv6(dst="ff02::1") / \
-               ICMPv6EchoRequest()
-    sendp(ping_pkt, iface=iface, verbose=False)
-    print("[+] 探测包已发送，请检查邻居表更新。")
+        # 只提取 fe80 开头的链路本地地址
+        if ipv6_addr and mac_addr and ipv6_addr.startswith('fe80'):
+            result.append(IPv6Neighbor(
+                local_ipv6=ipv6_addr,
+                mac=mac_addr
+            ))
+            #print(f"{ipv6_addr}-{mac_addr}")
 
-#def get_ipv6_by_mac_fast(target_mac):
-#    return neighbor_cache.get(target_mac.lower())
-
-
-async def scan_neighbors(iface):
-    result = {}
-    t=start_discovery_thread(iface=iface,results=result)
-    refresh_neighbors(iface)
-    await asyncio.sleep(2)
-    t.stop()
     return result
 
-if __name__ == "__main__":
-    asyncio.run(scan_neighbors(iface="en0"))
+def ipv4_to_mac(ip, iface):
+    pkt = Ether(dst="ff:ff:ff:ff:ff:ff") / ARP(pdst=ip)
+    ans = srp1(pkt, iface=iface, timeout=1, verbose=False)
+    if ans:
+        return ans.hwsrc.lower()
+    return None
+

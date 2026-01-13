@@ -1,19 +1,36 @@
-from pydantic import BaseModel, Field
-from typing import Optional, List
+from dataclasses import dataclass
+from typing import Optional
+
+from sqlmodel import SQLModel, Field
+
 
 # 标签模型
-class Tag(BaseModel):
-    tag_id: Optional[int] = None
-    alias: str
+class Tag(SQLModel, table=True):
+    __tablename__ = "tags"
 
-# 基础设备信息（复用字段）
-class BaseNode(BaseModel):
-    mac: str
-    tag_id: int  # 存储 Tag 的 ID 而不是字符串
+    tag_id: Optional[int] = Field(default=None, primary_key=True)
+    alias: str = Field(index=True)
+
+
+# 设备模型
+class Device(SQLModel, table=True):
+    __tablename__ = "devices"
+
+    mac: str = Field(primary_key=True, max_length=17)
+    tag_id: int = Field(foreign_key="tags.tag_id")
     alias: Optional[str] = None
 
-class Device(BaseNode):
-    pass
 
-class Gateway(BaseNode):
+# 网关模型
+class Gateway(SQLModel, table=True):
+    __tablename__ = "gateways"
+
+    mac: str = Field(primary_key=True, max_length=17)
+    tag_id: int = Field(foreign_key="tags.tag_id")
+    alias: Optional[str] = None
     local_ipv6: str
+
+@dataclass
+class IPv6Neighbor:
+    local_ipv6: str
+    mac: str
