@@ -1,4 +1,8 @@
+import datetime
+from http import HTTPStatus
 from typing import List, Generic, TypeVar, Type
+
+from apscheduler.job import Job
 from fastapi import FastAPI, HTTPException, Depends
 from sqlmodel import Session, select
 from starlette.middleware.cors import CORSMiddleware
@@ -8,10 +12,13 @@ from database import init_db, get_session, engine
 from neigh import ipv4_to_mac, get_ipv6_neighs
 
 from config import IFACE
-
+from apscheduler.schedulers.background import BackgroundScheduler
+scheduler = BackgroundScheduler()
+from app import daemon
 # --- 泛型 CRUD 服务 ---
 T = TypeVar("T")
 
+broadcast_job: Job|None = None
 
 class CRUDService(Generic[T]):
     def __init__(self, model: Type[T], id_field: str):
@@ -73,9 +80,13 @@ gateway_service = CRUDService(Gateway, "mac")
 # --- FastAPI 应用 ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
+    global broadcast_job
+    daemon()
+    broadcast_job = scheduler.add_job(daemon, 'interval', minutes=3)
+    scheduler.start()
     init_db()
     yield
+    scheduler.shutdown()
     # Shutdown (如果需要清理资源)
     # engine.dispose()
 app = FastAPI(lifespan=lifespan)
@@ -85,6 +96,37 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# ---daemon控制
+# ---daemon控制
+@app.get("/broadcast/stop")
+def stop_broadcast():
+    if broadcast_job:
+        broadcast_job.pause()
+        return {"status": "success", "message": "Broadcast job paused"}
+    raise HTTPException(status_code=500, detail="Job not found")
+
+@app.get("/broadcast/start")
+def start_broadcast():
+    if broadcast_job:
+        broadcast_job.resume()
+        return {"status": "success", "message": "Broadcast job resumed"}
+    raise HTTPException(status_code=500, detail="Job not found")
+
+@app.get("/broadcast/")
+def check_broadcast_job():
+    if broadcast_job and broadcast_job.next_run_time is not None:
+        return {
+            "running": True,
+            "next_run_time": broadcast_job.next_run_time.isoformat()
+        }
+    return {"running": False, "next_run_time": None}
+
+@app.get("/broadcast/trigger_now")
+def trigger_now():
+    if broadcast_job:
+        broadcast_job.modify(next_run_time=datetime.datetime.now())
+        return {"status": "success", "message": "Broadcast triggered"}
+    raise HTTPException(status_code=500, detail="Job not found")
 # --- 网络扫描路由 ---
 @app.get("/neighbors/")
 def list_neighbors():

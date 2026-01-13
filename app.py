@@ -8,8 +8,6 @@ from models import Device,Gateway
 
 from database import engine
 from utils import send_ra
-from apscheduler.schedulers.background import BackgroundScheduler
-scheduler = BackgroundScheduler()
 
 def daemon():
     with Session(engine) as session:  # 直接用 with Session
@@ -42,17 +40,10 @@ def daemon():
     pass
 
 if __name__ == "__main__":
-    daemon()
-    scheduler.add_job(daemon, 'interval', minutes=3)
-    scheduler.start()
-
-    try:
-        # 关闭热重载，避免 scheduler 重复启动
-        uvicorn.run(
-            "api:app",
-            host="0.0.0.0",
-            port=8000,
-            reload=False
-        )
-    except (KeyboardInterrupt, SystemExit):
-        scheduler.shutdown()
+    # 关闭热重载，避免 scheduler 重复启动
+    uvicorn.run(
+        "api:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=False
+    )
