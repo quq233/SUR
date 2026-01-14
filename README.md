@@ -46,7 +46,7 @@ SUR内置了WebUI，您可在数分钟内部署并上手，实现IPv6自由
 #### 1. 安装环境
 ```bash
 # 克隆仓库
-git clone [https://github.com/quq233/SUR](https://github.com/quq233/SUR) && cd SUR
+git clone https://github.com/quq233/SUR && cd SUR
 ```
 
 # 安装依赖
