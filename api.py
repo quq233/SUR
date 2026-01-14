@@ -95,21 +95,21 @@ app.add_middleware(
 )
 # ---daemon控制
 # ---daemon控制
-@app.get("/broadcast/stop")
+@app.get("/api/broadcast/stop")
 def stop_broadcast():
     if broadcast_job:
         broadcast_job.pause()
         return {"status": "success", "message": "Broadcast job paused"}
     raise HTTPException(status_code=500, detail="Job not found")
 
-@app.get("/broadcast/start")
+@app.get("/api/broadcast/start")
 def start_broadcast():
     if broadcast_job:
         broadcast_job.resume()
         return {"status": "success", "message": "Broadcast job resumed"}
     raise HTTPException(status_code=500, detail="Job not found")
 
-@app.get("/broadcast/")
+@app.get("/api/broadcast/")
 def check_broadcast_job():
     if broadcast_job and broadcast_job.next_run_time is not None:
         return {
@@ -118,82 +118,82 @@ def check_broadcast_job():
         }
     return {"running": False, "next_run_time": None}
 
-@app.get("/broadcast/trigger_now")
+@app.get("/api/broadcast/trigger_now")
 def trigger_now():
     if broadcast_job:
         broadcast_job.modify(next_run_time=datetime.datetime.now())
         return {"status": "success", "message": "Broadcast triggered"}
     raise HTTPException(status_code=500, detail="Job not found")
 # --- 网络扫描路由 ---
-@app.get("/neighbors/")
+@app.get("/api/neighbors/")
 def list_neighbors():
     return get_ipv6_neighs()
 
 
-@app.get("/ipv4/mac/")
+@app.get("/api/ipv4/mac/")
 async def get_ipv4_mac(ip: str):
     return ipv4_to_mac(iface=IFACE, ip=ip)
 
 
 # --- Tag 路由 ---
-@app.post("/tags/", response_model=Tag)
+@app.post("/api/tags/", response_model=Tag)
 def create_tag(tag: Tag, session: Session = Depends(get_session)):
     return tag_service.create(tag, session)
 
 
-@app.get("/tags/", response_model=List[Tag])
+@app.get("/api/tags/", response_model=List[Tag])
 def list_tags(session: Session = Depends(get_session)):
     return tag_service.get_all(session)
 
 
-@app.put("/tags/{tag_id}", response_model=Tag)
+@app.put("/api/tags/{tag_id}", response_model=Tag)
 def update_tag(tag_id: int, tag: Tag, session: Session = Depends(get_session)):
     return tag_service.update(tag_id, tag.model_dump(exclude_unset=True), session)
 
 
-@app.delete("/tags/{tag_id}")
+@app.delete("/api/tags/{tag_id}")
 def delete_tag(tag_id: int, session: Session = Depends(get_session)):
     return tag_service.delete(tag_id, session)
 
 
 # --- Device 路由 ---
-@app.post("/devices/", response_model=Device)
+@app.post("/api/devices/", response_model=Device)
 def create_device(device: Device, session: Session = Depends(get_session)):
     return device_service.create(device, session)
 
 
-@app.get("/devices/", response_model=List[Device])
+@app.get("/api/devices/", response_model=List[Device])
 def list_devices(session: Session = Depends(get_session)):
     return device_service.get_all(session)
 
 
-@app.put("/devices/{mac}", response_model=Device)
+@app.put("/api/devices/{mac}", response_model=Device)
 def update_device(mac: str, device: Device, session: Session = Depends(get_session)):
     return device_service.update(mac, device.model_dump(exclude_unset=True), session)
 
 
-@app.delete("/devices/{mac}")
+@app.delete("/api/devices/{mac}")
 def delete_device(mac: str, session: Session = Depends(get_session)):
     return device_service.delete(mac, session)
 
 
 # --- Gateway 路由 ---
-@app.post("/gateways/", response_model=Gateway)
+@app.post("/api/gateways/", response_model=Gateway)
 def create_gateway(gw: Gateway, session: Session = Depends(get_session)):
     return gateway_service.create(gw, session)
 
 
-@app.get("/gateways/", response_model=List[Gateway])
+@app.get("/api/gateways/", response_model=List[Gateway])
 def list_gateways(session: Session = Depends(get_session)):
     return gateway_service.get_all(session)
 
 
-@app.put("/gateways/{mac}", response_model=Gateway)
+@app.put("/api/gateways/{mac}", response_model=Gateway)
 def update_gateway(mac: str, gw: Gateway, session: Session = Depends(get_session)):
     return gateway_service.update(mac, gw.model_dump(exclude_unset=True), session)
 
 
-@app.delete("/gateways/{mac}")
+@app.delete("/api/gateways/{mac}")
 def delete_gateway(mac: str, session: Session = Depends(get_session)):
     return gateway_service.delete(mac, session)
 

@@ -49,3 +49,6 @@ def ipv4_to_mac(ip, iface):
         return ans.hwsrc.lower()
     return None
 
+if __name__=="__main__":
+    print(get_ipv6_neighs())
+
