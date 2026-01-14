@@ -1,24 +1,24 @@
 import datetime
-from http import HTTPStatus
+from contextlib import asynccontextmanager
 from typing import List, Generic, TypeVar, Type
 
-from apscheduler.job import Job
 from fastapi import FastAPI, HTTPException, Depends
 from sqlmodel import Session, select
 from starlette.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
-from models import Device, Gateway, Tag
-from database import init_db, get_session, engine
-from neigh import ipv4_to_mac, get_ipv6_neighs
+from starlette.responses import FileResponse
+from starlette.staticfiles import StaticFiles
 
-from config import IFACE
-from apscheduler.schedulers.background import BackgroundScheduler
-scheduler = BackgroundScheduler()
-from app import daemon
+from config import IFACE, WEBUI_DIR, WEBUI_ROOT_DIR
+from data.database import init_db, get_session
+from models import Device, Gateway, Tag
+from neigh import ipv4_to_mac, get_ipv6_neighs
+from utils import daemon, broadcast_job, scheduler
+from webui_manager import WebUIManager
+
 # --- 泛型 CRUD 服务 ---
 T = TypeVar("T")
 
-broadcast_job: Job|None = None
+
 
 class CRUDService(Generic[T]):
     def __init__(self, model: Type[T], id_field: str):
@@ -80,15 +80,12 @@ gateway_service = CRUDService(Gateway, "mac")
 # --- FastAPI 应用 ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global broadcast_job
+    await WebUIManager().ensure_webui()
     init_db()
     daemon()
-    broadcast_job = scheduler.add_job(daemon, 'interval', minutes=3,misfire_grace_time=60,coalesce=True,max_instances=1)
     scheduler.start()
     yield
     scheduler.shutdown()
-    # Shutdown (如果需要清理资源)
-    # engine.dispose()
 app = FastAPI(lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
@@ -199,3 +196,25 @@ def update_gateway(mac: str, gw: Gateway, session: Session = Depends(get_session
 @app.delete("/gateways/{mac}")
 def delete_gateway(mac: str, session: Session = Depends(get_session)):
     return gateway_service.delete(mac, session)
+
+
+
+
+if (WEBUI_ROOT_DIR / "assets").exists():
+    app.mount("/assets", StaticFiles(directory=str(WEBUI_ROOT_DIR / "assets")), name="assets")
+
+@app.get("/{full_path:path}")
+async def serve_spa(full_path: str):
+    """处理所有其他路由，返回 index.html 或静态文件"""
+    file_path = WEBUI_ROOT_DIR / full_path
+
+    # 如果是文件且存在，直接返回
+    if file_path.is_file():
+        return FileResponse(file_path)
+
+    # 否则返回 index.html（用于 SPA 路由）
+    index_path = WEBUI_ROOT_DIR / "index.html"
+    if index_path.exists():
+        return FileResponse(index_path)
+
+    return {"error": "WebUI not found"}
