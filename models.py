@@ -1,7 +1,8 @@
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, List
 
-from sqlmodel import SQLModel, Field
+from sqlmodel import SQLModel, Field, Column
+from sqlalchemy import JSON
 
 
 # 标签模型
@@ -10,6 +11,7 @@ class Tag(SQLModel, table=True):
 
     tag_id: Optional[int] = Field(default=None, primary_key=True)
     alias: str = Field(index=True)
+    dns: List[str] = Field(default_factory=list, sa_column=Column(JSON))
 
 
 # 设备模型

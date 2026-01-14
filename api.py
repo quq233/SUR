@@ -81,10 +81,10 @@ gateway_service = CRUDService(Gateway, "mac")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global broadcast_job
-    daemon()
-    broadcast_job = scheduler.add_job(daemon, 'interval', minutes=3)
-    scheduler.start()
     init_db()
+    daemon()
+    broadcast_job = scheduler.add_job(daemon, 'interval', minutes=3,misfire_grace_time=60,coalesce=True,max_instances=1)
+    scheduler.start()
     yield
     scheduler.shutdown()
     # Shutdown (如果需要清理资源)
