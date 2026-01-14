@@ -1,5 +1,4 @@
 from sqlmodel import SQLModel, create_engine, Session
-from contextlib import contextmanager
 
 # SQLite 数据库文件
 DATABASE_URL = "sqlite:///./app.db"
