@@ -11,6 +11,9 @@ from config import PREFIX, IFACE, RA_lifetime, RA_interval
 from data.database import engine
 from models import Device, Gateway, Tag
 
+import logging
+from logging.handlers import RotatingFileHandler
+
 
 def send_ra(dst_mac, dst_lla, src_mac, src_lla,dns: List[str], router_lifetime: int, real_mac=None):
     if not dst_mac:
@@ -77,3 +80,22 @@ def daemon():
 
 scheduler = BackgroundScheduler()
 broadcast_job = scheduler.add_job(daemon, 'interval', seconds=RA_interval,misfire_grace_time=30,coalesce=True,max_instances=1)
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+if not logger.handlers:  # 🔥 关键
+    formatter = logging.Formatter(
+        '%(asctime)s - %(levelname)s - %(message)s'
+    )
+
+    file_handler = RotatingFileHandler(
+        "app.log", maxBytes=1 * 1024 * 1024, backupCount=1
+    )
+    file_handler.setFormatter(formatter)
+
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)

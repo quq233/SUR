@@ -5,6 +5,7 @@ import json
 import asyncio
 
 from config import WEBUI_DIR,VERSION_FILE,GITHUB_REPO
+from utils import logger
 
 
 class WebUIManager:
@@ -29,7 +30,7 @@ class WebUIManager:
 
     async def download_webui(self, download_url: str, version: str):
         """下载并解压 WebUI"""
-        print(f"Downloading WebUI version {version}...")
+        logger.info(f"Downloading WebUI version {version}...")
 
         async with httpx.AsyncClient(follow_redirects=True, timeout=60.0) as client:
             response = await client.get(download_url)
@@ -39,7 +40,7 @@ class WebUIManager:
             with open(zip_path, "wb") as f:
                 f.write(response.content)
 
-            print("Extracting WebUI...")
+            logger.info("Extracting WebUI...")
             with zipfile.ZipFile(zip_path, 'r') as zip_ref:
                 zip_ref.extractall(self.webui_dir)
 
@@ -49,7 +50,7 @@ class WebUIManager:
             with open(self.version_file, "w") as f:
                 json.dump({"version": version}, f)
 
-            print(f"WebUI {version} ready!")
+            logger.info(f"WebUI {version} ready!")
 
     async def ensure_webui(self, force_update=False):
         """确保 WebUI 存在且是最新版本"""
@@ -70,14 +71,14 @@ class WebUIManager:
                 if asset:
                     await self.download_webui(asset["browser_download_url"], latest_version)
                 else:
-                    print("Warning: dist.zip not found in release assets")
+                    logger.warn("Warning: dist.zip not found in release assets")
             else:
-                print(f"WebUI is up to date (version {local_version})")
+                logger.info(f"WebUI is up to date (version {local_version})")
 
         except Exception as e:
             print(f"Error managing WebUI: {e}")
             if not (self.webui_dir / "index.html").exists():
-                raise Exception("WebUI not available and download failed")
+                logger.error("WebUI not available and download failed")
 
 if __name__ == "__main__":
     webui_manager = WebUIManager()
