@@ -2,3 +2,7 @@
 /webui/
 /.idea/
 /.env
+/out/
+/nuitka-crash-report.xml
+.idea/
+*.iml

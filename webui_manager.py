@@ -1,3 +1,4 @@
+import logging
 import httpx
 import zipfile
 import json
@@ -5,21 +6,22 @@ import json
 import asyncio
 
 from config import WEBUI_DIR,VERSION_FILE,GITHUB_REPO
-from utils import logger
+
+logger = logging.getLogger(__name__)
+
+async def get_latest_release():
+    """获取最新 release 信息"""
+    url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url)
+        response.raise_for_status()
+        return response.json()
 
 
 class WebUIManager:
     def __init__(self):
         self.webui_dir = WEBUI_DIR
         self.version_file = VERSION_FILE
-
-    async def get_latest_release(self):
-        """获取最新 release 信息"""
-        url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url)
-            response.raise_for_status()
-            return response.json()
 
     def get_local_version(self):
         """获取本地版本"""
@@ -57,7 +59,7 @@ class WebUIManager:
         self.webui_dir.mkdir(parents=True, exist_ok=True)
 
         try:
-            release = await self.get_latest_release()
+            release = await get_latest_release()
             latest_version = release["tag_name"]
             local_version = self.get_local_version()
 
@@ -71,12 +73,12 @@ class WebUIManager:
                 if asset:
                     await self.download_webui(asset["browser_download_url"], latest_version)
                 else:
-                    logger.warn("Warning: dist.zip not found in release assets")
+                    logger.warning("Warning: dist.zip not found in release assets")
             else:
                 logger.info(f"WebUI is up to date (version {local_version})")
 
         except Exception as e:
-            print(f"Error managing WebUI: {e}")
+            logger.error(f"Error managing WebUI: {e}")
             if not (self.webui_dir / "index.html").exists():
                 logger.error("WebUI not available and download failed")
 

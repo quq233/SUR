@@ -1,6 +1,8 @@
-from scapy.all import *
+import time
+
 from scapy.layers.inet6 import ICMPv6ND_RA, ICMPv6NDOptPrefixInfo, ICMPv6NDOptSrcLLAddr, IPv6, ICMPv6NDOptRDNSS
 from scapy.layers.l2 import Ether
+from scapy.sendrecv import sendp
 
 # --- 配置区 ---
 IFACE='br0'

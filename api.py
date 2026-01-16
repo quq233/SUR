@@ -4,6 +4,7 @@ import secrets
 from contextlib import asynccontextmanager
 from typing import List, Generic, TypeVar, Type
 
+import logging
 from dotenv import load_dotenv, set_key
 from fastapi import FastAPI, HTTPException, Depends, APIRouter
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -14,17 +15,19 @@ from starlette.responses import FileResponse
 from starlette.staticfiles import StaticFiles
 
 from config import IFACE, WEBUI_ROOT_DIR, ENV_FILE
-from data.database import init_db, get_session
+from data.database import init_db, get_session, check_db
 from models import Device, Gateway, Tag
 from neigh import ipv4_to_mac, get_ipv6_neighs
-from utils import daemon, broadcast_job, scheduler, logger
+from utils import daemon, broadcast_job, scheduler
 from webui_manager import WebUIManager
 
+logger = logging.getLogger(__name__)
 
 def get_or_create_token():
     # 1. 尝试加载现有的 .env
     load_dotenv(ENV_FILE)
     token = os.getenv("API_TOKEN")
+    logger.info(f"Token: {token}")
     if token:
         return token
 
@@ -35,7 +38,6 @@ def get_or_create_token():
 
 DEFAULT_TOKEN = get_or_create_token()
 security = HTTPBearer()
-
 async def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
     token = credentials.credentials  # 获取 Bearer 后面的 token
     if token != DEFAULT_TOKEN:
@@ -107,13 +109,14 @@ gateway_service = CRUDService(Gateway, "mac")
 
 # --- FastAPI 应用 ---
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_app: FastAPI):
     await WebUIManager().ensure_webui()
     init_db()
     daemon()
     scheduler.start()
     yield
     scheduler.shutdown()
+    check_db()
 app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(

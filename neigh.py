@@ -1,5 +1,6 @@
 import platform
 from typing import List
+import logging
 if platform.system() == "Linux":
     from pyroute2 import IPRoute
 from scapy.all import srp1
@@ -8,7 +9,7 @@ import socket
 
 from config import IFACE
 from models import IPv6Neighbor
-
+logger = logging.getLogger(__name__)
 
 def get_ipv6_neighs() -> List[IPv6Neighbor]:
     if platform.system() != "Linux":
@@ -37,7 +38,7 @@ def get_ipv6_neighs() -> List[IPv6Neighbor]:
                     ))
     except Exception as e:
         # 记录日志或处理 Linux 下权限不足等问题
-        print(f"Error accessing netlink: {e}")
+        logger.error(f"Error accessing netlink: {e}")
 
     return result
 
